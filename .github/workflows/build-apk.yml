@@ -19,8 +19,28 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Verify Project Paths & Serialization Imports
+        run: |
+          mkdir -p app/src/main/java/com/worldfootball/director/model
+          mkdir -p app/src/main/java/com/worldfootball/director/data
+          mkdir -p app/src/main/java/com/worldfootball/director/engine
+          mkdir -p app/src/main/java/com/worldfootball/director/ui
+          mkdir -p app/src/test/java/com/worldfootball/director
+          find app -name "*WorldModels*.kt" -exec sh -c '
+            for f do
+              if [ "$f" != "app/src/main/java/com/worldfootball/director/model/WorldModels.kt" ]; then
+                mv "$f" app/src/main/java/com/worldfootball/director/model/WorldModels.kt
+              fi
+            done
+          ' sh {} +
+          for f in $(find app -name "*.kt"); do
+            if grep -q "decodeFromString" "$f" && ! grep -q "import kotlinx.serialization.decodeFromString" "$f"; then
+              sed -i 's/import kotlinx.serialization.encodeToString/import kotlinx.serialization.encodeToString\nimport kotlinx.serialization.decodeFromString/g' "$f"
+            fi
+          done
+
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses || true
 
       - name: Setup Gradle 8.7
         uses: gradle/actions/setup-gradle@v4
